@@ -1,8 +1,11 @@
 import { createServer } from "node:http";
 import { IncomingMessage, ServerResponse } from "node:http";
-import { readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
-import { marked } from "marked";
+import axios, { AxiosRequestConfig, AxiosResponse } from 'axios'
+import { TwitterResponse } from "./types.js";
+import { createString } from "./utils/createString.js";
+import { countWords } from "./utils/countWords.js";
+import { BEARER_TOKEN, TWITTER_ENDPOINT_URL } from "./constants.js";
+import { filterWords } from "./utils/filterWords.js";
 
 createServer(router).listen(8126, () => {
   console.log("Listening on http://localhost:8126");
@@ -10,27 +13,38 @@ createServer(router).listen(8126, () => {
 
 async function router(req: IncomingMessage, res: ServerResponse) {
   try {
-    const url = new URL(req.url, `http://${req.headers["host"]}`);
+    const url: URL = new URL(req.url, `http://${req.headers["host"]}`);
+    const hashtag: string = url.searchParams.get('hashtag');
 
-    switch (`${req.method} ${url.pathname}`) {
-      case "GET /api/challenge":
-        res.writeHead(200);
-        res.write(
-          await marked(
-            await readFile(
-              fileURLToPath(new URL("../../CHALLENGE.md", import.meta.url)),
-              "utf8"
-            ),
-            { async: true }
-          )
-        );
-        break;
-
-      default:
-        res.writeHead(404);
-        res.write("Not Found");
-        break;
+    if (!url.searchParams.get('hashtag')) {
+      res.writeHead(400, {
+        "Content-Type": "application/json",
+      });
+      res.write(
+        JSON.stringify(new Error('Something went wrong...'))
+      );
+      return;
     }
+
+    const config: AxiosRequestConfig = {
+      method: 'get',
+      url: TWITTER_ENDPOINT_URL+hashtag,
+      headers: {
+        "User-Agent": "v2RecentSearchJS",
+        "authorization": `Bearer ${BEARER_TOKEN}`
+      },
+    };
+
+    const response: AxiosResponse<TwitterResponse, AxiosRequestConfig> = await axios(config);
+    if (response.data.data) {
+      const tweetString = createString(response.data.data)
+      const wordCount = countWords(tweetString)
+      const filteredData = filterWords(wordCount) 
+      res.writeHead(200, {
+        "Content-Type": "application/json",
+      });
+      res.write(JSON.stringify(filteredData));
+    } else throw new Error("Unsuccessful Request");
   } catch (e) {
     console.error(e);
     res.writeHead(500);
