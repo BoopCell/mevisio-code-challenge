@@ -15,5 +15,5 @@ export type TwitterResponse = {
 };
 export type Word = {
     value: string;
-    count: number | unknown;
+    count: number;
 }

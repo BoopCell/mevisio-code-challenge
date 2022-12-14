@@ -5,7 +5,7 @@ export const countWords = (inputString: string) => {
     const words = inputString.split(' ');
   
     // create an empty object to store the word counts
-    const wordCounts = {};
+    const wordCounts: Record<string, number> = {};
   
     // iterate over the array of words
     for (const word of words) {

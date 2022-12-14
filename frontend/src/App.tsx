@@ -14,32 +14,35 @@ import { TagCloud } from "react-tagcloud";
 
 export function App() {
   const [inputValue, setInputValue] = useState<string>("");
-  const [data, setData] = useState<Word[]>();
+  const [data, setData] = useState<Word[]>([{value: "123", count: 1}]);
   const [error, setError] = useState<Error>();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [showInputPrompt, setShowInputPrompt] = useState<boolean>(false);
   const [hashtagHeading, setHashtagHeading] = useState<String>("");
   
-  const handleSubmit = (e: React.SyntheticEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setError(null);
     if (inputValue.length > 1) {
       setIsLoading(true);
       setData([]);
       setShowInputPrompt(false)
-      fetch(`api/readTweets?hashtag=${inputValue}`)
-      .then((r: Response) => {
-        if (r.status !== 200) setError(new Error(r.statusText))
-        else return r.json()
-      })
-      .then((data: Word[]) => {
-        setData(data)
-        setHashtagHeading(inputValue)
-      })
-      .finally(() => {
-        setInputValue("")
-        setIsLoading(false)
-      });
+      const response = await fetch(`api/readTweets?hashtag=${inputValue}`)
+      try {
+        if (response.status !== 200) throw new Error(response.statusText)
+        const responseJson: Word[] = await response.json();
+        setData(responseJson);
+        setHashtagHeading(inputValue);
+      }
+      catch (e: any) {
+        setError(e)
+      }
+      finally {
+        setInputValue("");
+        setIsLoading(false);
+      }
+
+      console.log("")
     } else {
       setHashtagHeading("")
       setShowInputPrompt(true)
@@ -53,13 +56,8 @@ export function App() {
   }
 
 const Wordcloud = React.useMemo(() => (() =>
-    <TagCloud tags={data} minSize={15} maxSize={50} colorOptions={options} renderer={CustomRenderer} />
+    <TagCloud tags={data} minSize={15} maxSize={50} renderer={CustomRenderer} />
   ), [data])
-
-  const options = {
-    luminosity: 'light',
-    hue: 'yellow',
-  }
 
 const CustomRenderer = React.useMemo(() => ((tag: Word, size: number) => (
     <span
